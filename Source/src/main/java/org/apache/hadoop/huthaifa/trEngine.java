@@ -1,0 +1,105 @@
+package org.apache.hadoop.huthaifa;
+
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.StringTokenizer;
+
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.FileInputFormat;
+import org.apache.hadoop.mapred.FileOutputFormat;
+import org.apache.hadoop.mapred.JobClient;
+import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.MapReduceBase;
+import org.apache.hadoop.mapred.Mapper;
+import org.apache.hadoop.mapred.OutputCollector;
+import org.apache.hadoop.mapred.Reducer;
+import org.apache.hadoop.mapred.Reporter;
+//Dedicated Mapreduce application maching candidates with jobs
+public class trEngine {
+
+  public static class Map extends MapReduceBase
+  implements Mapper<LongWritable, Text, Text, Text>{
+    public void map(LongWritable key, Text value, OutputCollector<Text, Text> output, Reporter reporter)
+    throws IOException{
+      //Tokenise the words for analysis
+      StringTokenizer tokenizer = new StringTokenizer(value.toString(), "\n");
+      String line = null;
+      String[] lineArray = null;
+      String[] trEngineArray = null;
+      String[] tempArray = null;
+      //Loop over the keywords and process each
+      while(tokenizer.hasMoreTokens()){
+        line = tokenizer.nextToken();
+        lineArray = line.split(" : ");
+        trEngineArray = lineArray[1].split(" ");
+        tempArray = new String[2];
+        for(int i = 0; i < trEngineArray.length; i++){
+          tempArray[0] = trEngineArray[i];
+          tempArray[1] = lineArray[0];
+          Arrays.sort(tempArray);
+          output.collect(new Text(tempArray[0] + " " + tempArray[1]), new Text(lineArray[1]));
+        }
+      }
+    }
+  }
+
+  public static class Reduce extends MapReduceBase
+  implements Reducer<Text, Text, Text, Text>{
+    public void reduce(Text key, Iterator<Text> values,
+    OutputCollector<Text, Text> output, Reporter reporter) throws IOException{
+      Text[] texts = new Text[2];
+      int index = 0;
+      while(values.hasNext()){
+        texts[index++] = new Text(values.next());
+      }
+      String[] list1 = texts[0].toString().split(" ");
+      String[] list2 = texts[1].toString().split(" ");
+      List<String> list = new LinkedList<String>();
+      for(String trEngine1 : list1){
+        for(String trEngine2 : list2){
+          if(trEngine1.equals(trEngine2)){
+            //Add matching items to the list
+            list.add(trEngine1);
+          }
+        }
+      }
+      StringBuffer sb = new StringBuffer();
+      for(int i = 0; i < list.size(); i++){
+        sb.append(list.get(i));
+        if(i != list.size() - 1)
+        sb.append(" ");
+      }
+      //Set the matching rate by counting the keyword match list size
+      int matchRate = list.size();
+      sb.append(" MATCH-RATE : " + matchRate );
+      //Output relevent results only
+      if(key.toString().matches(".*\\HUTHAIFA\\b.*") && matchRate > 0)
+      output.collect(key, new Text(sb.toString()));
+    }
+  }
+
+  //Configure mapreduce driver
+  public static void main(String[] args) throws Exception{
+    JobConf conf = new JobConf(trEngine.class);
+    conf.setJobName("trEngine");
+
+    conf.setMapperClass(Map.class);
+    conf.setReducerClass(Reduce.class);
+
+    conf.setMapOutputKeyClass(Text.class);
+    conf.setMapOutputValueClass(Text.class);
+
+    conf.setOutputKeyClass(Text.class);
+    conf.setOutputValueClass(Text.class);
+
+    FileInputFormat.setInputPaths(conf, new Path(args[0]));
+    FileOutputFormat.setOutputPath(conf, new Path(args[1]));
+
+    JobClient.runJob(conf);
+  }
+}

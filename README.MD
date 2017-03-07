@@ -15,12 +15,16 @@ To build the project please use apache maven and execute the command below in th
 mvn clean package
 ```
 
-Upload the code to your hadoop cluster and run the following
+Upload the code to your Hadoop cluster and run the following
 
 ```
 yarn jar [JAR FILE NAME] org.apache.hadoop.huthaifa.trEngine [HDFS PATH TO DATA] [HDFS OUTPUT PATH]
 ```
 
+Example Output
+```
+001B8305-98CB-43D3-83C8-B35098F8E6BE-DEVELOPER HUTHAIFA SOFTWARE SQL C# MATCH-RATE : 3
+```
 Hope you find this solution useful :+1:
 
 ### Future Updates
@@ -28,4 +32,3 @@ Hope you find this solution useful :+1:
  * General Optimizations
  * Separate input for candidate and job postings
  * Unit Testing
- * Add more cool features .
